@@ -1,5 +1,34 @@
 import CardTile from './CardTile';
 
+const CARD_ORDER = [
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  'J',
+  'Q',
+  'K',
+  'A',
+];
+const SUIT_ORDER = ['♠', '♥'];
+const getCardValue = (card) => card?.slice(0, -1) || '';
+const getCardSuit = (card) => card?.slice(-1) || '';
+const sortCards = (a, b) => {
+  const suitA = SUIT_ORDER.indexOf(getCardSuit(a));
+  const suitB = SUIT_ORDER.indexOf(getCardSuit(b));
+  if (suitA !== suitB) {
+    return suitA - suitB;
+  }
+  return (
+    CARD_ORDER.indexOf(getCardValue(a)) - CARD_ORDER.indexOf(getCardValue(b))
+  );
+};
+
 function GameBoard({ gameState, onMakeMove, localPlayerId, localPlayerName }) {
   if (!gameState) {
     return <div className="game-shell">Waiting for game state...</div>;
@@ -19,32 +48,14 @@ function GameBoard({ gameState, onMakeMove, localPlayerId, localPlayerName }) {
   const opponentPlayerDisplay = opponentPlayer.name || 'Waiting...';
   const isGameReady = playerCount === 2;
   const isGameActive = gameState.phase === 'active' && isGameReady;
-  const isWaitingForOpponent = gameState.phase === 'waiting_for_opponent';
   const isLocalPlayerTurn = currentPlayerName === localPlayerDisplay;
+
+  const sortedLocalHand = [...(localPlayer.hand || [])].sort(sortCards);
 
   const playerById = gameState.players.reduce(
     (map, player) => ({ ...map, [player.id]: player }),
     {},
   );
-
-  if (isWaitingForOpponent) {
-    return (
-      <section className="duel-board">
-        <div className="waiting-state">
-          <h2>Waiting for opponent</h2>
-          <p>Waiting for another player to join room.</p>
-          <div className="waiting-players">
-            <div>{localPlayerDisplay}</div>
-            {opponentPlayer.name ? (
-              <div>{opponentPlayer.name}</div>
-            ) : (
-              <div>Waiting for opponent...</div>
-            )}
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="duel-board">
@@ -67,9 +78,9 @@ function GameBoard({ gameState, onMakeMove, localPlayerId, localPlayerName }) {
         <div className="table-center">
           <div className="table-pile">
             <div className="pile-title">Played cards</div>
-            {gameState.public.currentPlays?.length ? (
+            {gameState.public.history.length ? (
               <div className="pile-cards">
-                {gameState.public.currentPlays.map((entry, index) => (
+                {gameState.public.history.slice(-4).map((entry, index) => (
                   <div
                     key={index}
                     className={`played-card ${
@@ -84,7 +95,7 @@ function GameBoard({ gameState, onMakeMove, localPlayerId, localPlayerName }) {
                 ))}
               </div>
             ) : (
-              <div className="empty-pile">No cards on table</div>
+              <div className="empty-pile">No moves yet</div>
             )}
           </div>
         </div>
@@ -95,7 +106,7 @@ function GameBoard({ gameState, onMakeMove, localPlayerId, localPlayerName }) {
       >
         <div className="hand-panel">
           <div className="hand-row">
-            {localPlayer.hand?.map((card) => (
+            {sortedLocalHand.map((card) => (
               <CardTile
                 key={card}
                 card={card}

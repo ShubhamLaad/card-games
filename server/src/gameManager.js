@@ -1,9 +1,13 @@
 const { getGameConstructor } = require('./games/gameRegistry');
 
+// GameManager orchestrates rooms, socket joins, move routing, and state broadcasts.
 class GameManager {
   constructor(io) {
+    // Socket.io server instance used to emit events back to clients.
     this.io = io;
+    // Map of roomId -> room data including game instance and joined players.
     this.rooms = new Map();
+    // Map of socket.id -> roomId, used to look up the room for a disconnect.
     this.socketRoom = new Map();
   }
 
@@ -16,6 +20,7 @@ class GameManager {
       };
     }
 
+    // Find or create the room object for this roomId.
     let room = this.rooms.get(roomId);
     if (!room) {
       const GameConstructor = getGameConstructor(gameType);
@@ -30,6 +35,7 @@ class GameManager {
       this.rooms.set(roomId, room);
     }
 
+    // Prevent more than the allowed number of players.
     if (room.players.length >= room.game.maxPlayers) {
       return { success: false, message: 'Room is full' };
     }
@@ -39,8 +45,10 @@ class GameManager {
     this.socketRoom.set(socket.id, roomId);
     socket.join(roomId);
 
+    // Add player to the game instance.
     room.game.addPlayer(player.id, player.name);
 
+    // Automatically start once the room is full.
     if (
       room.players.length === room.game.maxPlayers &&
       room.game.state.phase !== 'active'
@@ -48,11 +56,13 @@ class GameManager {
       room.game.start();
     }
 
+    // Send personalized state to each player.
     room.players.forEach((player) => {
       const gameState = room.game.getPublicStateForPlayer(player.id);
       this.io.to(player.id).emit('game_state', gameState);
     });
 
+    // Broadcast the updated player list to all room members.
     this.io.to(roomId).emit('player_joined', {
       players: room.players.map((playerItem) => ({ name: playerItem.name })),
     });
@@ -67,12 +77,14 @@ class GameManager {
       return { success: false, message: 'Room not found' };
     }
 
+    // Forward the move to the specific room's game instance.
     const playerId = socket.id;
     const result = room.game.handleMove(playerId, move);
     if (!result.success) {
       return result;
     }
 
+    // Re-broadcast updated, personalized game state to everyone.
     room.players.forEach((player) => {
       const gameState = room.game.getPublicStateForPlayer(player.id);
       this.io.to(player.id).emit('game_state', gameState);
@@ -92,15 +104,18 @@ class GameManager {
       return;
     }
 
+    // Remove the disconnected player from the room and game.
     room.players = room.players.filter((player) => player.id !== socket.id);
     room.game.removePlayer(socket.id);
     this.socketRoom.delete(socket.id);
 
+    // Notify remaining room members.
     this.io.to(roomId).emit('player_left', {
       playerId: socket.id,
       players: room.players.map((playerItem) => ({ name: playerItem.name })),
     });
 
+    // Clean up empty rooms.
     if (room.players.length === 0) {
       this.rooms.delete(roomId);
     }
