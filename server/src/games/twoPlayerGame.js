@@ -93,6 +93,11 @@ class TwoPlayerGame extends BaseGame {
   }
 
   getHighestCard(cards) {
+    // Guard against undefined or non-array card inputs.
+    if (!Array.isArray(cards) || cards.length === 0) {
+      return null;
+    }
+
     // Return the highest ranked card from an array of card strings.
     return cards.reduce((highest, card) => {
       if (!highest) {
@@ -145,12 +150,24 @@ class TwoPlayerGame extends BaseGame {
       return { success: false, message: 'Player not found' };
     }
 
-    if (!player.hand.includes(move.card)) {
-      return { success: false, message: 'Card not in hand' };
+    // Normalize move shape so single-card moves work with resolveTrick().
+    const cards = Array.isArray(move.cards)
+      ? move.cards
+      : move.card
+        ? [move.card]
+        : [];
+
+    if (cards.length === 0) {
+      return { success: false, message: 'No cards provided' };
     }
 
-    player.hand = player.hand.filter((card) => card !== move.card);
-    const play = { playerId, move, timestamp: Date.now() };
+    if (!cards.every((card) => player.hand.includes(card))) {
+      return { success: false, message: 'One or more cards are not in hand' };
+    }
+
+    player.hand = player.hand.filter((card) => !cards.includes(card));
+    const normalizedMove = { cards };
+    const play = { playerId, move: normalizedMove, timestamp: Date.now() };
     this.state.public.history.push(play);
     this.state.public.lastMove = play;
     this.state.public.currentPlays.push(play);

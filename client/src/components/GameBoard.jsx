@@ -80,19 +80,23 @@ function GameBoard({ gameState, onMakeMove, localPlayerId, localPlayerName }) {
             <div className="pile-title">Played cards</div>
             {gameState.public.history.length ? (
               <div className="pile-cards">
-                {gameState.public.history.slice(-4).map((entry, index) => (
-                  <div
-                    key={index}
-                    className={`played-card ${
-                      entry.playerId === currentPlayer.id ? 'active' : ''
-                    }`}
-                  >
-                    <div className="played-card-owner">
-                      {playerById[entry.playerId]?.name || 'Player'}
+                {gameState.public.history.slice(-4).map((entry, index) => {
+                  const cardToShow =
+                    entry.move?.cards?.[0] || entry.move?.card || '🂠';
+                  return (
+                    <div
+                      key={index}
+                      className={`played-card ${
+                        entry.playerId === currentPlayer.id ? 'active' : ''
+                      }`}
+                    >
+                      <div className="played-card-owner">
+                        {playerById[entry.playerId]?.name || 'Player'}
+                      </div>
+                      <CardTile card={cardToShow} />
                     </div>
-                    <CardTile card={entry.move?.card || '🂠'} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="empty-pile">No moves yet</div>
